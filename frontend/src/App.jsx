@@ -1,9 +1,22 @@
 import testImage from "./assets/sora-sagano-unsplash.jpg";
 
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 
 function App() {
   const ref = useRef();
+
+  // TODO fetch game data from server
+  let gameData;
+
+  useEffect(() => {
+    const handleResize = () => {
+      ref.current.style.display = "none";
+    };
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
 
   const handleClick = (e) => {
     // apply styling to a circle
@@ -20,15 +33,23 @@ function App() {
     const fractionX = relativeX / rectWidth;
     const fractionY = relativeY / rectHeight;
     console.log(`X fraction: ${fractionX}; Y fraction: ${fractionY}`);
+    // TODO send data to server
   };
 
   return (
     <>
-      <div
-        className="hidden w-20 h-20 border-[#102C57]/[0.3] bg-[#102C57]/[0.2] border-solid border-2 rounded-full absolute pointer-events-none"
-        style={{ transform: "translate(-50%, -50%)" }}
-        ref={ref}
-      ></div>
+      <div className="hidden fixed" ref={ref}>
+        <div
+          className=" w-20 h-20 border-[#102C57]/[0.3] bg-[#102C57]/[0.2] border-solid border-2 rounded-full absolute pointer-events-none left-0 inline-block"
+          style={{ transform: "translate(-50%, -50%)" }}
+        ></div>
+        <div className="border-[#DAC0A3] border-solid border-2 absolute bg-[#EADBC8] inline-block left-10 -top-10 p-1 min-w-24">
+          {gameData?.options
+            ? gameData.options.map((option) => <button>{option}</button>)
+            : "No data loaded"}
+        </div>
+      </div>
+
       <h1 className="text-3xl font-bold my-6">
         Welcome to a photo tagging app!
       </h1>
