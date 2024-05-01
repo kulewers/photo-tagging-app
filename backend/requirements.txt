@@ -1,6 +1,0 @@
-item coordinates are only accessible to server and checked when request is being sent by the client
-
-client should receive image url for the game, names of items to find and their picure url, as well as randomly generated game id for keeping score
-
-game id is sent by the client after game completion and time passed is being checked and assigned to the user
-
