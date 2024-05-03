@@ -44,8 +44,7 @@ app.post("/cleanup", async (req, res) => {
   res.json(deleteCount);
 });
 
-app.get("/start-game", [
-  body("gameId").exists().escape(),
+app.post("/start-game", [
   body("levelId").isMongoId().escape(),
   async (req, res) => {
     const errors = validationResult(req);
@@ -90,6 +89,9 @@ app.post("/validate", [
   body("itemName").isLength({ min: 1 }).escape(),
   body("normalizedCoordinates").isObject().escape(),
   async (req, res) => {
+    // res.json({ match: true });
+    // return;
+
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) {
