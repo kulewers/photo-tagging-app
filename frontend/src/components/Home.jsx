@@ -12,10 +12,10 @@ export default function Home() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       // Level ID currnetly hardcoded, to be changed later
-      body: JSON.stringify({ levelId: "" }),
+      body: JSON.stringify({ levelId: "66361f148953f48021df71d1" }),
     });
     if (!response.ok) throw new Error(response.statusText);
-    const resData = response.json();
+    const resData = await response.json();
     setGameData(resData);
 
     navigate("/play");

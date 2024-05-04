@@ -12,13 +12,15 @@ export default function Level() {
 
   // TODO fetch game data from server
   useEffect(() => {
-    const handleResize = () => {
+    const handleRemove = () => {
       setNormalizedCoordinates({});
       ref.current.style.display = "none";
     };
-    window.addEventListener("resize", handleResize);
+    window.addEventListener("resize", handleRemove);
+    window.addEventListener("scroll", handleRemove);
     return () => {
-      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("resize", handleRemove);
+      window.removeEventListener("scroll", handleRemove);
     };
   }, []);
 
