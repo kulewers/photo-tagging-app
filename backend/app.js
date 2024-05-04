@@ -18,6 +18,7 @@ async function main() {
 
 const app = express();
 
+const Item = require("./models/item");
 const Level = require("./models/level");
 const Game = require("./models/game");
 const { body, validationResult } = require("express-validator");
@@ -36,13 +37,14 @@ app.use((req, res, next) => {
   next();
 });
 
-app.post("/cleanup", async (req, res) => {
-  const deleteCount = await Game.deleteMany({
+async function cleanup() {
+  await Game.deleteMany({
     scoreSeconds: null,
-    startDate: { $lte: Math.floor(new Date().getTime() / 1000) + 60 * 60 },
+    startDate: { $lte: Math.floor(new Date() / 1000) + 60 * 30 },
   });
-  res.json(deleteCount);
-});
+}
+
+setInterval(cleanup, 1000 * 60 * 60);
 
 app.post("/start-game", [
   body("levelId").isMongoId().escape(),
@@ -54,14 +56,17 @@ app.post("/start-game", [
       return;
     }
 
-    const level = await Level.findById(req.body.levelId).populate("items");
+    const level = await Level.findById(req.body.levelId);
 
     if (!level) {
       res.status(404).json({ errors: [{ msg: "Level not found" }] });
       return;
     }
 
-    const items = level.items;
+    const items = await Item.find({ level: level._id })
+      .sort({ name: 1 })
+      .select("name imageUrl")
+      .exec();
 
     const game = new Game({
       level: req.body.levelId,
@@ -87,11 +92,8 @@ app.post("/start-game", [
 app.post("/validate", [
   body("gameId").exists().escape(),
   body("itemName").isLength({ min: 1 }).escape(),
-  body("normalizedCoordinates").isObject().escape(),
+  body("normalizedCoordinates").isObject(),
   async (req, res) => {
-    // res.json({ match: true });
-    // return;
-
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) {
@@ -99,16 +101,22 @@ app.post("/validate", [
       return;
     }
 
-    const game = await Game.findById(req.params.gameId).populate(
-      "level itemsLeft"
-    );
+    const game = await Game.findById(req.body.gameId)
+      .populate("level itemsLeft")
+      .exec();
+
+    if (!game) {
+      res.status(400).json({ errors: [{ msg: "Game not found" }] });
+      return;
+    }
+
     const level = game.level;
 
     const requestedItem = game.itemsLeft.filter(
       (item) => item.name === req.body.itemName
     )[0];
 
-    if (!requrestedItem) {
+    if (!requestedItem) {
       res.status(400).json({ errors: [{ msg: "Item not in the list" }] });
       return;
     }
@@ -118,6 +126,7 @@ app.post("/validate", [
     const { top, left } = req.body.normalizedCoordinates;
     if (top === undefined || left === undefined) {
       res.status(400).json({ errors: [{ msg: "Coordinates not provided" }] });
+      return;
     }
 
     const x = left * level.imageResolution.width;
@@ -126,9 +135,13 @@ app.post("/validate", [
     const leeway = 20;
     let match;
     if (
+      // Left bound
       x >= itemDimensions.left - leeway &&
+      // Right bound
       x <= itemDimensions.left + itemDimensions.width + leeway &&
+      // Top bound
       y > itemDimensions.top - leeway &&
+      // Bottom bound
       y < itemDimensions.top + itemDimensions.height + leeway
     ) {
       match = true;
@@ -144,7 +157,7 @@ app.post("/validate", [
         .map((item) => item._id);
 
       if (game.itemsLeft.length === 0) {
-        game.scoreSeconds = Math.floor(new Date() / 1000) - game.startDate;
+        game.scoreSeconds = Math.floor((new Date() - game.startDate) / 1000);
         gameEnd = true;
       }
 
@@ -158,7 +171,24 @@ app.post("/submit-name", [
   body("gameId").exists().escape(),
   body("playerName").trim().escape(),
   async (req, res) => {
-    const game = Game.findById(req.body.gameId);
+    const errors = validationResult(req);
+
+    if (!errors.isEmpty()) {
+      res.status(400).json(errors);
+      return;
+    }
+
+    const game = await Game.findById(req.body.gameId);
+
+    if (!game) {
+      res.status(400).json({ errors: [{ msg: "Game not found" }] });
+      return;
+    }
+
+    if (!(game.itemsLeft.length === 0)) {
+      res.status(400).json({ errors: [{ msg: "Game not yet finished" }] });
+      return;
+    }
 
     game.playerName = req.body.playerName;
     await game.save();
