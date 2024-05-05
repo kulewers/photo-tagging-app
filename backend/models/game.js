@@ -5,7 +5,7 @@ const GameSchema = new Schema({
   level: { type: Schema.Types.ObjectId, ref: "level", required: true },
   startDate: { type: Date, required: true },
   itemsLeft: [{ type: Schema.Types.ObjectId, ref: "item" }],
-  scoreSeconds: { type: Number },
+  scoreMilliseconds: { type: Number },
   playerName: { type: String, default: "Anonymous" },
 });
 

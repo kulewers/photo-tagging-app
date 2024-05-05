@@ -21,7 +21,8 @@ const app = express();
 const Item = require("./models/item");
 const Level = require("./models/level");
 const Game = require("./models/game");
-const { body, validationResult } = require("express-validator");
+const { param, body, validationResult } = require("express-validator");
+const asyncHandler = require("express-async-handler");
 
 app.use(cors());
 app.use(logger("dev"));
@@ -39,8 +40,8 @@ app.use((req, res, next) => {
 
 async function cleanup() {
   await Game.deleteMany({
-    scoreSeconds: null,
-    startDate: { $lte: Math.floor(new Date() / 1000) + 60 * 30 },
+    scoreMilliseconds: null,
+    startDate: { $lte: new Date() - 1000 * 60 * 30 },
   });
 }
 
@@ -80,6 +81,7 @@ app.post("/start-game", [
       // gameId will be replaced by gameToken when using jwt
       gameId: game._id,
       levelData: {
+        id: level._id,
         imageUrl: level.imageUrl,
         items: items.map((item) => {
           return { name: item.name, imageUrl: item.imageUrl };
@@ -157,13 +159,13 @@ app.post("/validate", [
         .map((item) => item._id);
 
       if (game.itemsLeft.length === 0) {
-        game.scoreSeconds = Math.floor((new Date() - game.startDate) / 1000);
+        game.scoreMilliseconds = new Date() - game.startDate;
         gameEnd = true;
       }
 
       await game.save();
     }
-    res.json({ match, gameEnd, score: game.scoreSeconds });
+    res.json({ match, gameEnd, score: game.scoreMilliseconds });
   },
 ]);
 
@@ -195,6 +197,28 @@ app.post("/submit-name", [
 
     res.json({ playerName: req.body.playerName });
   },
+]);
+
+app.get("/scores/:levelId", [
+  param("levelId").exists().isMongoId().escape(),
+  asyncHandler(async (req, res) => {
+    console.log("levelId: ", req.params.levelId);
+    const level = await Level.findById(req.params.levelId);
+
+    if (!level) {
+      res.status(400).json({ errors: [{ mgs: "Level not found" }] });
+      return;
+    }
+
+    const games = await Game.find({
+      level: req.params.levelId,
+      scoreMilliseconds: { $exists: true },
+    })
+      .select("-_id playerName scoreMilliseconds")
+      .exec();
+
+    res.json({ scores: [games] });
+  }),
 ]);
 
 module.exports = app;
